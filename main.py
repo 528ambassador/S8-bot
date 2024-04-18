@@ -30,3 +30,4 @@ async def echo_message(message):
 
 bot.polling(none_stop=True)
 #def magic
+#кто прочитал тот лох ахахах!!!!!!!!!
