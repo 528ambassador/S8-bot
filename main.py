@@ -24,10 +24,11 @@ def main(message):
 
 
 @bot.message_handler(func=lambda message: True)
-async def echo_message(message):
-    await bot.reply_to(message, message.text)
+def main(message):
+    if [1 for n in ['пасхалко', '1488', 'вентилятор'] if n in message.text]:
+        bot.reply_to(message, f'уффффхпр посхалочка')
+    else:
+        bot.send_message(message.chat.id, f'Вы сказали "{message.text}"')
 
 
 bot.polling(none_stop=True)
-#def magic
-#кто прочитал тот лох ахахах!!!!!!!!!
