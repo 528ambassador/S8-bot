@@ -1,66 +1,158 @@
 import telebot
+import sqlite3
+from random import randint
 from telebot import types
 
+
+# Ссылка на бота С8:
 bot = telebot.TeleBot('7066300352:AAHoKT8LAaZd4pdnkbU3vlzBijI25bM7Xqo')
 
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# Проверка на команды:
+# Основные команды:
 
+
+# --  START -- Начало общения с ботом, выводит на экран приветствие и несколько комманд
 
 @bot.message_handler(commands=['start'])
-def main(message):
-    bot.send_message(message.chat.id, 'Арбузы')
+def start(message):
+
+    if message.chat.type == 'private':
+        bot.send_message(message.chat.id, f'Привет! Я бот для регулировки групп S8. \n'
+                                          f'Чтобы получить полный функционал, добавьте бота в свою группу.\n'
+                                          f'Что я могу:\n'
+                                          f'◻ Удалять сообщения с ключевыми словами\n'
+                                          f'◻ Посылать в мут* пользователей группы\n'
+                                          f'◻ Решать споры с монеткой или костью\n'
+                                          f'◻ Запустить одну из 3 игр для всей группы\n'
+                                          f'Список всех команд: /menu\n'
+                                          f'Список разрешений: /permissions')
+    else:
+        bot.send_message(message.chat.id, f'Всем привет! Я бот для регулировки групп S8. \n'
+                                          f'Что я могу:\n'
+                                          f'🔹 Удалять сообщения с ключевыми словами\n'
+                                          f'🔹 Посылать в мут* пользователей группы\n'
+                                          f'🔹 Решать споры с монеткой или костью\n'
+                                          f'🔹 Запустить одну из 3 игр для всей группы\n'
+                                          f'Список всех команд: /menu\n'
+                                          f'Список разрешений: /permissions')
 
 
-@bot.message_handler(commands=['rofls'])
-def main(message):
-    bot.send_message(message.chat.id, message)
+# ------------------------------------------------------------------------------------
+
+# -- MENU -- Список всех команд, выводит одним сообщением.
 
 
-@bot.message_handler(commands=['hello'])
-def main(message):
-    bot.send_message(message.chat.id, f'Привет, {message.from_user.username}')
+@bot.message_handler(commands=['menu'])
+def menu(message):
+    bot.send_message(message.chat.id, 'Список команд:\n'
+                                      '/start - Начало разговора\n'
+                                      '/menu - Меню со всеми командами\n'
+                                      '/permissions - Разрешения для бота и участников группы\n'
+                                      '/blacklisted_words - Управление запрещенными словами\n'
+                                      '/mute_list - Список участников в муте\n'
+                                      '/coin_flip - Подбрасывает монетку\n'
+                                      '/dice_roll - Кидает кость\n'
+                                      '/play_game - Запускает игру\n'
+                                      '/anecdote - Печатает случайный анекдот')
 
 
-@bot.message_handler(commands=['banned_words'])
-def main(message):
-    markup = types.InlineKeyboardMarkup()
-    btn1 = types.InlineKeyboardButton('Пасхалко медный бык', callback_data='useless')
-    btn2 = types.InlineKeyboardButton('ещкереее сгма сгма сгма', callback_data='cool')
-    markup.row(btn1, btn2)
-    bot.send_message(message.chat.id, f'Что ты выберешшшш па?', reply_markup=markup)
+# ------------------------------------------------------------------------------------
+
+
+# -- BLACKLISTED_WORDS -- Работа с нелегальными словами
+
+
+@bot.message_handler(commands=['blacklisted_words'])
+def blacklisted_words_main(message):
+    if message.chat.type != 'private':
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, selective=True)
+        btn1 = types.KeyboardButton('✅ Добавить слова')
+        btn2 = types.KeyboardButton('❌ Удалить слова')
+        btn3 = types.KeyboardButton('➡ Просмотреть список')
+        btn4 = types.KeyboardButton('💥 Удалить список')
+        btn5 = types.KeyboardButton('🔙 Вернуться')
+
+        markup.add(btn1, btn2, btn3, btn4, btn5)
+
+        bot.reply_to(message, 'Сейчас вы изменяете список запрещенных слов в группе.\n'
+                              'Выберите один из варинатов чтобы продолжить.', reply_markup=markup)
+
+    else:
+        bot.reply_to(message, 'Изменить список запрещенных слов можно только в группе')
+
+
+# ------------------------------------------------------------------------------------
+
+# -- COIN_FLIP -- Подбрасывает монетку и случайным обрзаом выбирает орла или решку.
+
+
+@bot.message_handler(commands=['coin_flip'])
+def coin_flip(message):
+    coin_random = randint(0, 1)
+    coin = ['ОРЁЛ', 'РЕШКА'][coin_random]
+    word = ['оказался', 'оказалась'][coin_random]
+    bot.reply_to(message, f'Монетка была подброшена в воздух, и когда она приземлилась, на ней {word}...'
+                          f' \n \n<b>{coin}!</b>', parse_mode='html')
+
+
+# ------------------------------------------------------------------------------------
+
+# -- DICE_ROLL -- Кидает n-гранную кость по числу, введенное пользователем.
+
+
+@bot.message_handler(commands=['dice_roll'])
+def dice_roll(message):
+    bot.reply_to(message, 'Наберите значение сторон кости (4-100) и <em>перешлите сообщение,'
+                          ' где вы вводили команду</em>', parse_mode='html')
 
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# Провкрка сообщений на ключевые слова:
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# Провкрка сообщений на ключевые слова с обычных сообщений:
 
 
 @bot.message_handler(func=lambda message: True)
-def main(message):
+def commands_in_text(message):
+    # Основные кнопки:
 
-    # ""
-    if 'check' in message.text:
-        bot.reply_to(message, str(message)[0:4000])
+    if message.text == '🔙 Вернуться':
+        # bot.delete_message(message.chat.id, message.reply_to_message.message_id)
+        bot.send_message(message.chat.id, 'Список команд: /menu')
 
-    elif [1 for n in ['пасхалко', '1488', 'вентилятор'] if n in message.text]:
-        bot.reply_to(message, f'уффффхпр посхалочка')
+    # Проверка ключевых слов с команды BLACKLISTED_WORDS:
 
-    else:
-        bot.send_message(message.chat.id, f'Вы сказали "{message.text}"')
+    # Первая ветка после BLACKLISTED_WORDS:
+    if message.text == '✅ Добавить слова':
+        # bot.delete_message(message.chat.id, message.reply_to_message.message_id)
+        bot.send_message(message.chat.id, 'Харош! 1', reply_markup=None)
+
+    elif message.text == '❌ Удалить слова':
+        # bot.delete_message(message.chat.id, message.reply_to_message.message_id)
+        bot.send_message(message.chat.id, 'Харош! 2')
+
+    elif message.text == '➡ Просмотреть список':
+        # bot.delete_message(message.chat.id, message.reply_to_message.message_id)
+        bot.send_message(message.chat.id, 'Харош! 3')
+
+    elif message.text == '💥 Удалить список':
+        # bot.delete_message(message.chat.id, message.reply_to_message.message_id)
+        bot.send_message(message.chat.id, 'Харош! 4')
+
+    # Проверка ключевых слов с команды DICE_ROLL:
+    if message.text.isnumeric():
+        if message.reply_to_message is not None:
+            if message.reply_to_message.from_user.id == message.from_user.id:
+                if 4 <= int(message.text) <= 100:
+                    dice_rolled = randint(1, int(message.text))
+                    bot.reply_to(message, f'Кость была брошена, и на ней выпало число...'
+                                          f'\n\n<b>{dice_rolled}!</b>', parse_mode='html')
+                else:
+                    bot.reply_to(message, 'Неправильное значение кости! Попробуйте снова')
 
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# Реализпция функций с помощью кнопок сообщения бота:
-
-
-@bot.callback_query_handler(func=lambda callback: True)
-def magic(callback):
-    if callback.data == 'cool':
-        print('эммм')
-        bot.send_message(callback.message.chat.id, f'1488%!!!!!!!')
-    elif callback.data == 'useless':
-        bot.send_message(callback.message.chat.id, f'харош??????')
 
 
 bot.polling(none_stop=True)
