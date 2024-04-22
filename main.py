@@ -37,6 +37,19 @@ def start(message):
                                           f'Список всех команд: /menu\n'
                                           f'Список разрешений: /permissions')
 
+        group_db_name = 'DB' + str(message.chat.id) + 'S8'
+        con = sqlite3.connect(group_db_name)
+        cur = con.cursor()
+        
+        # НЕ РАБОТАЕТ
+        cur.execute("""CREATE TABLE IF NOT EXISTS 
+                        admins_ids(admin TEXT UNIQUE)""")
+        cur.execute("""CREATE TABLE IF NOT EXISTS 
+                        banned_words_list(phrase, punishment_type)""")
+        cur.execute("""CREATE TABLE IF NOT EXISTS 
+                        mute_list(muted_user, date_start, date_finish)""")
+        con.commit()
+
 
 # ------------------------------------------------------------------------------------
 
@@ -115,11 +128,14 @@ def dice_roll(message):
 
 @bot.message_handler(func=lambda message: True)
 def commands_in_text(message):
+
     # Основные кнопки:
 
     if message.text == '🔙 Вернуться':
         # bot.delete_message(message.chat.id, message.reply_to_message.message_id)
         bot.send_message(message.chat.id, 'Список команд: /menu')
+
+    # -----------------------------------------------------------------
 
     # Проверка ключевых слов с команды BLACKLISTED_WORDS:
 
@@ -140,6 +156,8 @@ def commands_in_text(message):
         # bot.delete_message(message.chat.id, message.reply_to_message.message_id)
         bot.send_message(message.chat.id, 'Харош! 4')
 
+    # -----------------------------------------------------------------
+
     # Проверка ключевых слов с команды DICE_ROLL:
     if message.text.isnumeric():
         if message.reply_to_message is not None:
@@ -151,6 +169,34 @@ def commands_in_text(message):
                 else:
                     bot.reply_to(message, 'Неправильное значение кости! Попробуйте снова')
 
+    # -----------------------------------------------------------------
+
+    # Тестирование
+    if message.text == '//rofls':
+        bot.send_message(message.chat.id, str(message)[:4047])
+    elif message.text == '//add_to_admin_list':
+        if message.chat.type != 'private':
+            bot.send_message(message.chat.id, "Ваш статус - " +
+                             str(bot.get_chat_member(message.chat.id, message.from_user.id).status))
+            if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
+
+                # НЕ РАБОТАЕТ
+
+                con = sqlite3.connect('DB' + str(message.chat.id) + 'S8')
+                cur = con.cursor()
+
+                try:
+                    cur.execute("INSERT INTO admins_ids VALUES (?) ", str(message.from_user.id))
+                    con.commit()
+
+                except sqlite3.IntegrityError:
+                    pass
+
+                res = cur.execute("SELECT admin FROM admins_ids").fetchall()
+
+                bot.send_message(message.chat.id, str([n for n in res]))
+                con.close()
+                cur.close()
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
