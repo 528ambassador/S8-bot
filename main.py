@@ -3,7 +3,6 @@ import sqlite3
 from random import randint
 from telebot import types
 
-
 # Ссылка на бота С8:
 bot = telebot.TeleBot('7066300352:AAHoKT8LAaZd4pdnkbU3vlzBijI25bM7Xqo')
 
@@ -16,15 +15,14 @@ bot = telebot.TeleBot('7066300352:AAHoKT8LAaZd4pdnkbU3vlzBijI25bM7Xqo')
 
 @bot.message_handler(commands=['start'])
 def start(message):
-
     if message.chat.type == 'private':
         bot.send_message(message.chat.id, f'Привет! Я бот для регулировки групп S8. \n'
                                           f'Чтобы получить полный функционал, добавьте бота в свою группу.\n'
                                           f'Что я могу:\n'
-                                          f'◻ Удалять сообщения с ключевыми словами\n'
-                                          f'◻ Посылать в мут* пользователей группы\n'
-                                          f'◻ Решать споры с монеткой или костью\n'
-                                          f'◻ Запустить одну из 3 игр для всей группы\n'
+                                          f'🔹 Удалять сообщения с ключевыми словами\n'
+                                          f'🔹 Посылать в мут* пользователей группы\n'
+                                          f'🔹 Решать споры с монеткой или костью\n'
+                                          f'🔹 Запустить одну из 3 игр для всей группы\n'
                                           f'Список всех команд: /menu\n'
                                           f'Список разрешений: /permissions')
     else:
@@ -37,18 +35,21 @@ def start(message):
                                           f'Список всех команд: /menu\n'
                                           f'Список разрешений: /permissions')
 
-        group_db_name = 'DB' + str(message.chat.id) + 'S8'
+        group_db_name = 'DB' + str(message.chat.id) + 'S8.db'
+
         con = sqlite3.connect(group_db_name)
         cur = con.cursor()
-        
-        # НЕ РАБОТАЕТ
+
         cur.execute("""CREATE TABLE IF NOT EXISTS 
-                        admins_ids(admin TEXT UNIQUE)""")
+                        Admins(admin TEXT UNIQUE)""")
+
         cur.execute("""CREATE TABLE IF NOT EXISTS 
-                        banned_words_list(phrase, punishment_type)""")
+                        Banned_words(phrase TEXT UNIQUE, punishment_type TEXT)""")
+
         cur.execute("""CREATE TABLE IF NOT EXISTS 
-                        mute_list(muted_user, date_start, date_finish)""")
+                        Mute_list(muted_user TEXT UNIQUE, date_finish INT)""")
         con.commit()
+        con.close()
 
 
 # ------------------------------------------------------------------------------------
@@ -95,6 +96,10 @@ def blacklisted_words_main(message):
         bot.reply_to(message, 'Изменить список запрещенных слов можно только в группе')
 
 
+def delete_keyboard(message):
+
+
+
 # ------------------------------------------------------------------------------------
 
 # -- COIN_FLIP -- Подбрасывает монетку и случайным обрзаом выбирает орла или решку.
@@ -129,6 +134,7 @@ def dice_roll(message):
 @bot.message_handler(func=lambda message: True)
 def commands_in_text(message):
 
+
     # Основные кнопки:
 
     if message.text == '🔙 Вернуться':
@@ -141,19 +147,19 @@ def commands_in_text(message):
 
     # Первая ветка после BLACKLISTED_WORDS:
     if message.text == '✅ Добавить слова':
-        # bot.delete_message(message.chat.id, message.reply_to_message.message_id)
-        bot.send_message(message.chat.id, 'Харош! 1', reply_markup=None)
+        bot.delete_message(message.chat.id, message.reply_to_message.message_id)
+        bot.send_message(message.chat.id, 'Харош! 1')
 
     elif message.text == '❌ Удалить слова':
-        # bot.delete_message(message.chat.id, message.reply_to_message.message_id)
+        bot.delete_message(message.chat.id, message.reply_to_message.message_id)
         bot.send_message(message.chat.id, 'Харош! 2')
 
     elif message.text == '➡ Просмотреть список':
-        # bot.delete_message(message.chat.id, message.reply_to_message.message_id)
+        bot.delete_message(message.chat.id, message.reply_to_message.message_id)
         bot.send_message(message.chat.id, 'Харош! 3')
 
     elif message.text == '💥 Удалить список':
-        # bot.delete_message(message.chat.id, message.reply_to_message.message_id)
+        bot.delete_message(message.chat.id, message.reply_to_message.message_id)
         bot.send_message(message.chat.id, 'Харош! 4')
 
     # -----------------------------------------------------------------
@@ -180,23 +186,13 @@ def commands_in_text(message):
                              str(bot.get_chat_member(message.chat.id, message.from_user.id).status))
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
 
-                # НЕ РАБОТАЕТ
-
-                con = sqlite3.connect('DB' + str(message.chat.id) + 'S8')
+                con = sqlite3.connect('DB' + str(message.chat.id) + 'S8.db')
                 cur = con.cursor()
 
-                try:
-                    cur.execute("INSERT INTO admins_ids VALUES (?) ", str(message.from_user.id))
-                    con.commit()
-
-                except sqlite3.IntegrityError:
-                    pass
-
-                res = cur.execute("SELECT admin FROM admins_ids").fetchall()
-
-                bot.send_message(message.chat.id, str([n for n in res]))
+                cur.execute("INSERT OR IGNORE INTO Admins VALUES (?) ", tuple([str(message.from_user.id)]))
+                con.commit()
                 con.close()
-                cur.close()
+
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
