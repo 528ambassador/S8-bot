@@ -1,127 +1,16 @@
-import time
-
 import telebot
+
 import sqlite3
+import time
 # Scary!
 import re
+import os
+import requests
 from random import randint, choice
 from telebot import types
-import os
 
 # Ссылка на бота С8:
 bot = telebot.TeleBot('7066300352:AAHoKT8LAaZd4pdnkbU3vlzBijI25bM7Xqo')
-
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-class SnakeGame:
-    def __init__(self, group_id):
-        self.score = None
-        self.apple_position = None
-        self.snake_segments = None
-        self.db_connection = sqlite3.connect(f'DBGAMES' + str(group_id) + 'S8.db')
-        self.db_cursor = self.db_connection.cursor()
-        self.setup_game()
-
-    def setup_game(self):
-        # Создаем таблицу, если она не существует
-        self.db_cursor.execute('''CREATE TABLE IF NOT EXISTS Snake_S8 (
-                                    snake_segments TEXT,
-                                    apple_position TEXT
-                                  )''')
-        self.db_connection.commit()
-
-        # Устанавливаем начальное состояние игры
-        self.snake_segments = [(3, 3)]  # Сегменты змеи (начинаем в центре)
-        self.apple_position = self.generate_new_apple()
-        self.score = 0
-
-        # Сохраняем начальное состояние в базу данных
-        self.save_game_state()
-
-    def save_game_state(self):
-        # Сохраняем текущее состояние игры в базу данных
-        self.db_cursor.execute('''INSERT INTO Snake_S8 (snake_segments, apple_position)
-                                   VALUES (?, ?)''', (str(self.snake_segments), str(self.apple_position)))
-        self.db_connection.commit()
-
-    def generate_new_apple(self):
-        # Генерируем новое случайное положение для яблока
-        apple_x = randint(0, 6)
-        apple_y = randint(0, 6)
-        return apple_x, apple_y
-
-    def move_snake(self, direction):
-        head_x, head_y = self.snake_segments[0]
-
-        if direction == 'up':
-            new_head = (head_x, head_y - 1)
-        elif direction == 'down':
-            new_head = (head_x, head_y + 1)
-        elif direction == 'left':
-            new_head = (head_x - 1, head_y)
-        elif direction == 'right':
-            new_head = (head_x + 1, head_y)
-        else:
-            return False  # Некорректное направление
-
-        # Проверяем столкновение с телом змеи
-        if new_head in self.snake_segments[1:]:
-            self.end_game()
-            return False
-
-        # Проверяем столкновение с границами карты
-        if not (0 <= new_head[0] <= 6 and 0 <= new_head[1] <= 6):
-            self.end_game()
-            return False
-
-        # Добавляем новую голову к змее
-        self.snake_segments.insert(0, new_head)
-
-        # Проверяем, съела ли змея яблоко
-        if new_head == self.apple_position:
-            self.apple_position = self.generate_new_apple()
-            self.score += 1
-        else:
-            # Удаляем последний сегмент змеи
-            self.snake_segments.pop()
-
-        # Сохраняем новое состояние игры
-        self.save_game_state()
-
-        return True
-
-    def display_game(self):
-        # Выводим игровое поле с использованием эмодзи
-        for y in range(7):
-            for x in range(7):
-                if (x, y) in self.snake_segments:
-                    if (x, y) == self.snake_segments[0]:
-                        print('🅾️', end=' ')
-                    else:
-                        print('🟥', end=' ')
-                elif (x, y) == self.apple_position:
-                    print('🍎', end=' ')
-                else:
-                    print('🟦', end=' ')
-            print()  # Новая строка для следующей строки поля
-
-    def end_game(self):
-        print(f"Игра окончена! Ваш счёт: {self.score}")
-        self.db_connection.close()
-        exit()
-
-# Пример использования
-# game = SnakeGame()
-# game.display_game()
-#
-# while True:
-#     direction = input("Введите направление (up/down/left/right): ")
-#     if game.move_snake(direction):
-#         game.display_game()
-#     else:
-#         print("Некорректное направление. Используйте 'up', 'down', 'left', или 'right'.")
 
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -154,7 +43,7 @@ def start(message):
                                           f'<b>Чтобы я корректно работал, добавьте меня в свою группу как '
                                           f'администратор</b>\n'
                                           f'Вот список полезных команд - /menu\n'
-                                          f'<b>Некоторые параметры группы я могу изменять в лс</b>'
+                                          f'<b>Некоторые параметры группы я могу изменять в лс</b>\n'
                                           f'Давайте начнём!', parse_mode='html')
 
         group_db_name = 'DB' + str(message.chat.id) + 'S8.db'
@@ -167,6 +56,9 @@ def start(message):
 
         cur.execute("""CREATE TABLE IF NOT EXISTS 
                         Banned_words(phrase TEXT UNIQUE, punishment_type TEXT)""")
+
+        cur.execute("""CREATE TABLE IF NOT EXISTS 
+                        Banned_types(ttype TEXT UNIQUE)""")
 
         cur.execute("""CREATE TABLE IF NOT EXISTS 
                         User_ids(username TEXT UNIQUE, id TEXT UNIQUE)""")
@@ -188,9 +80,12 @@ def menu(message):
                                       '/menu - Меню со всеми командами\n'
                                       '/quick_menu - Меню с быстрыми командами\n'
                                       '/blacklisted_words -❗- Управление запрещенными словами\n'
+                                      '/blacklisted_types -❗- Управление запрещенными типами сообщений\n'
                                       '/coin_flip - Подбрасывает монетку\n'
                                       '/rtd - Кидает кость d100\n'
-                                      '/play_game -❗- Запускает игру\n'
+                                      '/8ball - Пишет случайный результат волшебного шара восьмерки\n'
+                                      '/quote - Пишет случайную цитату на английском\n'
+                                      '/cat - Посылает случайную картинку с котиком\n'
                                       'Больше комманд для админимтраторов в /blacklisted_words')
 
 
@@ -206,23 +101,26 @@ def menu(message):
                                       '//mdata -❗- присылает сырые данные сообщения\n'
                                       '//add_to_admin_list -❗- добавляет в список админов группы\n'
                                       '//get_group_id -❗- присылает код группы\n'
-                                      '//game_stop -❗- останавливает идущаю игру\n'
                                       '//members - присылает список участников группы\n\n'
                                       '--- Команды с параметрами\n'
                                       '//mute {@-} {d:h:m} -❗- заглушает полльзователя на d, h, m дней, '
                                       'часов, минут соответственно\n'
                                       '//unmute {@-} -❗- убрать заглушение с пользователя\n'
+                                      '//kick {@-} -❗- кикает участника группы с шансом вернутся в неё\n'
+                                      '//ban {@-} -❗- банит участника группы без шанса на возвращение\n'
+                                      '//unban {@-} -❗- разбан пользователя (юзернейм нужно помнить, '
+                                      'не возвращает обратно в группу)\n'
                                       '//remove_from_admin_list {@-} -❗- убрать из списка админов\n'
                                       '//bwl_add {фраза: последствие}-❗- добавляет в список запрещенных слов список,'
-                                      'каждую фразу с последствие писать с новой строки, последствия: m, k, a - '
+                                      'каждую фразу с последствием писать с новой строки, последствия: m, k, a - '
                                       'заглушить на час, кикнуть, предупредить соответственно\n'
                                       '//bwl_remove {фраза} -❗- вводятся с новой строки, удаляет из списка'
                                       'выбранные фразы если есть\n'
                                       '//bwl_delete -❗- удаляет весь список\n'
                                       '//bwl_show_list -❗- показывает весь список\n'
-                                      '//game_start {игра} -❗- запускает выбранную игру (змейка / )\n'
-                                      '//poll {выборы} -❗- создает опрос с выборами в виде введеных аргументов,'
-                                      'каждый с новой строки \n\n'
+                                      '//btl_set {тип} -❗- удаляет сообщения с данными типами, '
+                                      'писать на отдельных строках, список в самой команде\n'
+                                      '//btl_show_list -❗- показывает список запрещенных типов сообщений\n\n'
                                       '--- Заменяющие команды (бот заменяет команду и пересылает ваше сообщение)\n'
                                       '//coin_flip - заменяется на орёла / решку\n'
                                       '//rtd - заменяется на число 1 - 100\n'
@@ -237,21 +135,69 @@ def menu(message):
 
 @bot.message_handler(commands=['blacklisted_words'])
 def blacklisted_words_main(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, selective=True)
-    btn1 = types.KeyboardButton('✅ Добавить слова')
-    btn2 = types.KeyboardButton('❌ Удалить слова')
-    btn3 = types.KeyboardButton('➡ Просмотреть список')
-    btn4 = types.KeyboardButton('💥 Удалить список')
-    btn5 = types.KeyboardButton('🔙 Вернуться')
-
-    markup.add(btn1, btn2, btn3, btn4, btn5)
-
     if message.chat.type in ['group', 'supergroup']:
-        bot.reply_to(message, 'Сейчас вы изменяете список запрещенных слов в группе.\n'
-                              'Выберите один из варинатов чтобы продолжить.', reply_markup=markup)
-    elif message.chat.type == 'private':
-        bot.reply_to(message, 'Сейчас вы изменяете список запрещенных слов в группе.\n'
-                              'Для этого вам понадобится код вашей группы (инструкция в /start)\n'
+        if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, selective=True)
+            btn1 = types.KeyboardButton('✅ Добавить слова')
+            btn2 = types.KeyboardButton('❌ Удалить слова')
+            btn3 = types.KeyboardButton('➡ Просмотреть список')
+            btn4 = types.KeyboardButton('💥 Удалить список')
+            btn5 = types.KeyboardButton('🔙 Вернуться')
+
+            markup.add(btn1, btn2, btn3, btn4, btn5)
+
+            bot.reply_to(message, 'Сейчас вы изменяете список запрещенных слов в группе. \n'
+                                  'При использовании запрещенного слова от не администратора следуют последствия.\n'
+                                  ' Выберите один из варинатов чтобы продолжить.', reply_markup=markup)
+
+    if message.chat.type == 'private':
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, selective=True)
+        btn1 = types.KeyboardButton('✅ Добавить слова')
+        btn2 = types.KeyboardButton('❌ Удалить слова')
+        btn3 = types.KeyboardButton('➡ Просмотреть список')
+        btn4 = types.KeyboardButton('💥 Удалить список')
+        btn5 = types.KeyboardButton('🔙 Вернуться')
+
+        markup.add(btn1, btn2, btn3, btn4, btn5)
+
+        bot.reply_to(message, 'Сейчас вы изменяете список запрещенных слов в группе. \n'
+                              'При использовании запрещенного слова от не администратора следуют последствия.\n'
+                              ' Для этого вам понадобится код вашей группы (инструкция в /start). \n'
+                              'Выберите один из варинатов чтобы продолжить.\n', reply_markup=markup)
+
+
+# ------------------------------------------------------------------------------------
+
+
+# -- BLACKLISTED_TYPES -- Работа с нелегальными типами сообщений
+
+
+@bot.message_handler(commands=['blacklisted_types'])
+def blacklisted_types_main(message):
+    if message.chat.type in ['group', 'supergroup']:
+        if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, selective=True)
+            btn1 = types.KeyboardButton('✅ Изменить список типов')
+            btn2 = types.KeyboardButton('➡ Просмотреть список типов')
+
+            markup.add(btn1)
+            markup.add(btn2)
+
+            bot.reply_to(message, 'Сейчас вы изменяете список запрещенных типов слов в группе. \n'
+                                  'Все сообщения от не администраторов с данным типом будут сразу удалены. \n'
+                                  'Выберите один из варинатов чтобы продолжить.', reply_markup=markup)
+
+    if message.chat.type == 'private':
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, selective=True)
+        btn1 = types.KeyboardButton('✅ Изменить список типов')
+        btn2 = types.KeyboardButton('➡ Просмотреть список типов')
+
+        markup.add(btn1)
+        markup.add(btn2)
+
+        bot.reply_to(message, 'Сейчас вы изменяете список запрещенных слов в группе. \n'
+                              'Все сообщения от не администраторов с данными типами будут сразу удалены. \n'
+                              'Для этого вам понадобится код вашей группы (инструкция в /start). \n'
                               'Выберите один из варинатов чтобы продолжить.\n', reply_markup=markup)
 
 
@@ -283,13 +229,46 @@ def dice_roll(message):
 
 # ------------------------------------------------------------------------------------
 
-# -- COIN_FLIP -- Подбрасывает монетку и случайным обрзаом выбирает орла или решку.
+# -- QUOTE -- Пишет случайную цитату и его автора, с помощью QUOTABLE API, пишет на английском
+
+@bot.message_handler(commands=['quote'])
+def quote(message):
+    quotable_get_text = requests.get('https://api.quotable.io/random')
+    quote_get = quotable_get_text.json()
+
+    bot.send_message(message.chat.id, f'{quote_get["content"]} - {quote_get["author"]}')
 
 
-@bot.message_handler(commands=['game'])
-def snake_start(message):
-    g = SnakeGame(message.chat.id)
-    g.display_game()
+# ------------------------------------------------------------------------------------
+
+# -- 8BALL -- Выводит случайный результат шара восьмерки
+
+@bot.message_handler(commands=['8ball'])
+def eightball(message):
+    variants = ["Бесспорно", "Предрешено", "Без сомнения", "Да, определенно", "Можешь на это рассчитывать",
+                "Как я вижу, да", "Самое вероятное", "Вероятно", "Знаки указывают на да", "Да", "Ответ положительный",
+                "Не могу сейчас сказать, попробуй снова", "Спроси позже", "Лучше не говорить тебе сейчас",
+                "Сейчас нельзя предсказать", "Сосредоточься и спроси опять", "Не надейся", "Мой ответ - нет",
+                "Мои источники говорят - нет", "По моим данным - нет", "Перспективы не очень хорошие",
+                "Весьма сомнительно", "Нет", "Ответ отрицательный"]
+
+    bot.send_message(message.chat.id, variants[randint(0, len(variants) - 1)])
+
+
+# ------------------------------------------------------------------------------------
+
+# -- CAT -- Выводит фото случайного котика с помощью THECATAPI
+
+@bot.message_handler(commands=['cat'])
+def cat(message):
+    response = requests.get('https://api.thecatapi.com/v1/images/search')
+    if response.status_code == 200:
+        data = response.json()
+        image_url = data[0]['url']
+        bot.send_photo(message.chat.id, image_url)
+    else:
+        bot.send_message(message.chat.id, 'Возникла ошибка при выполнении команды')
+
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -297,7 +276,7 @@ def snake_start(message):
 # Провкрка сообщений на ключевые слова с обычных сообщений:
 
 
-@bot.message_handler(func=lambda message: True)
+@bot.message_handler(func=lambda message: message.content_type == 'text')
 def commands_in_text(message):
     # Основные кнопки:
 
@@ -357,15 +336,9 @@ def commands_in_text(message):
 
     # -----------------------------------------------------------------
 
-    elif message.text == '➡ Просмотреть список':
-        if message.chat.type in ['group', 'supergroup']:
-            if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
-                bot.send_message(message.chat.id, 'Введите команду <b>//bwl_show_list</b>',
-                                 reply_markup=types.ReplyKeyboardRemove(), parse_mode='html')
-
-        elif message.chat.type == 'private':
-            bot.send_message(message.chat.id, 'Введите команду <b>//bwl_show_list {Код группы}</b>',
-                             reply_markup=types.ReplyKeyboardRemove(), parse_mode='html')
+    elif message.text == '➡ Просмотреть список' and message.chat.type == 'private':
+        bot.send_message(message.chat.id, 'Введите команду <b>//bwl_show_list {Код группы}</b>',
+                         reply_markup=types.ReplyKeyboardRemove(), parse_mode='html')
     # -----------------------------------------------------------------
 
     elif message.text == '💥 Удалить список':
@@ -381,6 +354,41 @@ def commands_in_text(message):
                              reply_markup=types.ReplyKeyboardRemove(), parse_mode='html')
 
     # -----------------------------------------------------------------
+    # -----------------------------------------------------------------
+
+    # Проверка ключевых слов с команды BLACKLISTED_TYPES:
+    elif message.text == '✅ Изменить список типов':
+        if message.chat.type in ['group', 'supergroup']:
+            if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
+                bot.send_message(message.chat.id, 'Сейчас вы будете добавлять новый список запрещенных типов.\n'
+                                                  'Возможные запрещенные типы:\n'
+                                                  'audio, photo, voice, video, document, \n'
+                                                  'location, contact, sticker\n'
+                                                  '🔹 <b>Формат:</b> \n'
+                                                  'Первая строка - команда <b>//btl_set</b>,\n'
+                                                  'Последующие - тип из списка.\n'
+                                                  'Каждая фраза на отдельных строках\n'
+                                                  'Чтобы очистить список, напишите что-либо не являющимся типом',
+                                 reply_markup=types.ReplyKeyboardRemove(), parse_mode='html')
+        elif message.chat.type == 'private':
+            bot.send_message(message.chat.id, 'Сейчас вы будете добавлять новый список запрещенных типов.\n'
+                                              'Возможные запрещенные типы:\n'
+                                              'audio, photo, voice, video, document, \n'
+                                              'location, contact, sticker\n'
+                                              '🔹 <b>Формат:</b> \n'
+                                              'Первая строка - команда <b>//btl_set</b>,\n'
+                                              'Вторая строка - <i>Код группы</i>\n'
+                                              'Последующие - тип из списка.\n'
+                                              'Каждая фраза на отдельных строках\n'
+                                              'Чтобы очистить список, напишите что-либо не являющимся типом',
+                             reply_markup=types.ReplyKeyboardRemove(), parse_mode='html')
+
+    # -----------------------------------------------------------------
+
+    elif message.text == '➡ Просмотреть список типов' and message.chat.type == 'private':
+
+        bot.send_message(message.chat.id, 'Введите команду <b>//btl_show_list {Код группы}</b>',
+                         reply_markup=types.ReplyKeyboardRemove(), parse_mode='html')
 
     # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -389,7 +397,7 @@ def commands_in_text(message):
 
     if '//bwl_add' in message.text:
 
-        # ДЛЯ ГРУПП - ДОБАВЛЕНИЕ ФРАЗ
+        # ДЛЯ ГРУПП - ДОБАВЛЕНИЕ ФРАЗ - СЛОВА
         if message.chat.type in ['group', 'supergroup']:
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
                 log = 'Изменения сохранены'
@@ -410,7 +418,7 @@ def commands_in_text(message):
                 bot.delete_message(message.chat.id, message.message_id)
                 bot.send_message(message.chat.id, log)
 
-        # ДЛЯ ЛС БОТА - ДОБАВЛЕНИЕ ФРАЗ
+        # ДЛЯ ЛС БОТА - ДОБАВЛЕНИЕ ФРАЗ - СЛОВА
         elif message.chat.type == 'private':
             log = 'Изменения сохранены'
             try:
@@ -446,7 +454,7 @@ def commands_in_text(message):
 
     if '//bwl_remove' in message.text:
 
-        # ДЛЯ ГРУПП - УДАЛЕНИЕ ФРАЗ
+        # ДЛЯ ГРУПП - УДАЛЕНИЕ ФРАЗ - СЛОВА
         if message.chat.type in ['group', 'supergroup']:
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
                 log = 'Изменения сохранены'
@@ -470,7 +478,7 @@ def commands_in_text(message):
                 bot.delete_message(message.chat.id, message.message_id)
                 bot.send_message(message.chat.id, log)
 
-        # ДЛЯ ЛС БОТА - УДАЛЕНИЕ ФРАЗ
+        # ДЛЯ ЛС БОТА - УДАЛЕНИЕ ФРАЗ - СЛОВА
         elif message.chat.type == 'private':
             log = 'Изменения сохранены'
             try:
@@ -507,10 +515,10 @@ def commands_in_text(message):
 
     # -----------------------------------------------------------------
 
-    if '//bwl_show_list' in message.text:
+    if '//bwl_show_list' in message.text or message.text == '➡ Просмотреть список':
 
-        # ДЛЯ ГРУПП - ПОКАЗАТЬ СПИСОК
-        if message.chat.type in ['group', 'supergroup']:
+        # ДЛЯ ГРУПП - ПОКАЗАТЬ СПИСОК - СЛОВА
+        if message.chat.type in ['group', 'supergroup'] and message.text == '➡ Просмотреть список':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
 
                 log = 'Неожиданная ошибка'
@@ -531,11 +539,12 @@ def commands_in_text(message):
                 except Exception:
                     pass
 
-                bot.delete_message(message.chat.id, message.message_id)
-                bot.send_message(message.chat.id, log)
+                if message.text != '➡ Просмотреть список':
+                    bot.delete_message(message.chat.id, message.message_id)
+                bot.send_message(message.chat.id, log, reply_markup=types.ReplyKeyboardRemove())
 
-        # ДЛЯ ЛС БОТА - ПОКАЗАТЬ СПИСОК
-        elif message.chat.type == 'private':
+        # ДЛЯ ЛС БОТА - ПОКАЗАТЬ СПИСОК - СЛОВА
+        elif message.chat.type == 'private' and message.text != '➡ Просмотреть список':
             try:
                 chat_id = message.text.split(' ')[1].strip(' ')
                 db_name = 'DB' + chat_id + 'S8.db'
@@ -572,7 +581,7 @@ def commands_in_text(message):
 
     if '//bwl_delete' in message.text:
 
-        # ДЛЯ ГРУПП - УДАЛИТЬ СПИСОК
+        # ДЛЯ ГРУПП - УДАЛИТЬ СПИСОК - СЛОВА
         if message.chat.type in ['group', 'supergroup']:
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
 
@@ -594,7 +603,7 @@ def commands_in_text(message):
                 bot.delete_message(message.chat.id, message.message_id)
                 bot.send_message(message.chat.id, log)
 
-        # ДЛЯ ЛС БОТА - УДАЛИТЬ СПИСОК
+        # ДЛЯ ЛС БОТА - УДАЛИТЬ СПИСОК - СЛОВА
         elif message.chat.type == 'private':
             try:
 
@@ -624,6 +633,151 @@ def commands_in_text(message):
                 log = 'Некорректный ввод'
 
             bot.send_message(message.chat.id, log)
+
+    # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    # Быстрые команды BLACKLISTED_TYPES:
+    if '//btl_set' in message.text:
+
+        # ДЛЯ ГРУПП - ДОБАВИТЬ СПИСОК - ТИПЫ
+        if message.chat.type in ['group', 'supergroup']:
+            if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
+
+                log = 'Изменения сохранены'
+                try:
+                    allowed = ['audio', 'photo', 'voice', 'video', 'document', 'location', 'contact', 'sticker']
+                    written_types = message.text.split('\n')[1:]
+
+                    con = sqlite3.connect('DB' + str(message.chat.id) + 'S8.db')
+                    cur = con.cursor()
+
+                    cur.execute("DELETE FROM Banned_types")
+                    con.commit()
+
+                    for ttype in written_types:
+                        if ttype.strip(' ').lower() in allowed:
+                            try:
+                                cur.execute("INSERT OR IGNORE INTO Banned_types VALUES (?) ",
+                                            (ttype.strip(' ').lower(),))
+                            except Exception:
+                                pass
+
+                    con.commit()
+                    con.close()
+
+                except Exception:
+                    log = 'Некорректный ввод'
+
+                bot.delete_message(message.chat.id, message.message_id)
+                bot.send_message(message.chat.id, log)
+
+        # ДЛЯ ЛС БОТА - ДОБАВИТЬ СПИСОК - ТИПЫ
+        if message.chat.type == 'private':
+            log = 'Изменения сохранены'
+            try:
+                allowed = ['audio', 'photo', 'voice', 'video', 'document', 'location', 'contact', 'sticker']
+                written_types = message.text.split('\n')[2:]
+
+                chat_id = message.text.split('\n')[1].strip(' ')
+                db_name = 'DB' + chat_id + 'S8.db'
+
+                if os.path.exists(db_name):
+                    con = sqlite3.connect(db_name)
+                else:
+                    raise Exception
+
+                cur = con.cursor()
+
+                check = (cur.execute("SELECT admin FROM Admins WHERE admin = ?",
+                                     (message.from_user.username,)).fetchone())
+
+                if check:
+                    cur.execute("DELETE FROM Banned_types")
+                    con.commit()
+                    for ttype in written_types:
+                        if ttype.strip(' ').lower() in allowed:
+                            try:
+                                cur.execute("INSERT OR IGNORE INTO Banned_types VALUES (?) ",
+                                            (ttype.strip(' ').lower(),))
+                            except Exception:
+                                pass
+
+                else:
+                    log = 'Вы не являетесь админом группы'
+
+                con.commit()
+                con.close()
+
+            except Exception:
+                log = 'Некорректный ввод'
+
+            bot.send_message(message.chat.id, log)
+
+        # -----------------------------------------------------------------
+
+    # ДЛЯ ГРУПП - ПОКАЗАТЬ СПИСОК - ТИПЫ
+    if message.text == '//btl_show_list' or message.text == '➡ Просмотреть список типов':
+        if message.chat.type in ['group', 'supergroup']:
+            if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
+
+                log = 'Неожиданная ошибка'
+
+                try:
+                    con = sqlite3.connect('DB' + str(message.chat.id) + 'S8.db')
+                    cur = con.cursor()
+
+                    raw_list = cur.execute("SELECT * FROM Banned_types").fetchall()
+                    con.close()
+
+                    full_list = '\n'.join([''.join(n) for n in raw_list])
+                    if full_list:
+                        log = 'Список запрещенных типов:\n' + full_list
+                    else:
+                        log = 'В списке нет запрещенных типов'
+
+                except Exception:
+                    pass
+
+                if message.text != '➡ Просмотреть список типов':
+                    bot.delete_message(message.chat.id, message.message_id)
+                bot.send_message(message.chat.id, log, reply_markup=types.ReplyKeyboardRemove())
+
+        # ДЛЯ ЛС БОТА - ПОКАЗАТЬ СПИСОК - ТИПЫ
+
+        if message.chat.type == 'private' and message.text != '➡ Просмотреть список типов':
+            log = 'Неожиданная ошибка'
+
+            try:
+                chat_id = message.text.split(' ')[1].strip(' ')
+                db_name = 'DB' + chat_id + 'S8.db'
+
+                if os.path.exists(db_name):
+                    con = sqlite3.connect(db_name)
+                else:
+                    raise Exception
+
+                cur = con.cursor()
+
+                check = (cur.execute("SELECT admin FROM Admins WHERE admin = ?",
+                                     (message.from_user.username,)).fetchone())
+
+                if check:
+                    raw_list = cur.execute("SELECT * FROM Banned_types").fetchall()
+                    con.close()
+
+                    full_list = '\n'.join([''.join(n) for n in raw_list])
+                    if full_list:
+                        log = 'Список запрещенных типов:\n' + full_list
+                    else:
+                        log = 'В списке нет запрещенных типов'
+                else:
+                    log = 'Вы не являетесь админом группы'
+
+            except Exception:
+                pass
+
+            bot.send_message(message.chat.id, log, reply_markup=types.ReplyKeyboardRemove())
 
     # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -919,61 +1073,84 @@ def commands_in_text(message):
     # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     # Заполнение базы User_ids
+    con = sqlite3.connect('DB' + str(message.chat.id) + 'S8.db')
+    cur = con.cursor()
 
+    cur.execute("INSERT OR IGNORE INTO User_ids VALUES(?, ?) ",
+                tuple([str(message.from_user.username).strip('@'), str(message.from_user.id)]))
+    con.commit()
+
+    # Проверка на нелегальные ключевые слова
+
+    bwlist = cur.execute("SELECT * FROM Banned_words").fetchall()
+    result = 'n'
+
+    con.close()
+
+    for bw in bwlist:
+        if bw[0] in message.text.lower():
+            if bw[1] == 'k':
+                result = 'k'
+
+            if bw[1] == 'm' and result != 'k':
+                result = 'm'
+
+            if bw[1] == 'a' and result != 'm' and result != 'k':
+                result = 'a'
+
+    if result == 'k':
+        try:
+            bot.kick_chat_member(message.chat.id, message.from_user.id)
+            time.sleep(0.1)
+            bot.unban_chat_member(message.chat.id, message.from_user.id)
+
+            bot.send_message(message.chat.id, f'Ползователь @{message.from_user.username} был кикнут '
+                                              f'из группы за использование запрещенных слов')
+        except Exception:
+            pass
+
+    elif result == 'm':
+        try:
+            bot.restrict_chat_member(message.chat.id, message.from_user.id,
+                                     until_date=(message.date + 3600))
+            bot.send_message(message.chat.id, f'Ползователь @{message.from_user.username} был заглушен '
+                                              f'на час за использование запрещенных слов')
+        except Exception:
+            pass
+
+    elif result == 'a':
+        if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) not in (
+                'creator', 'administrator'):
+            bot.reply_to(message, f'@{message.from_user.username}, вы использовали слово, '
+                                  f'входящее в список запрещенных.\n'
+                                  f'Администраторы группы могут принять меры \n[bwl_alert]')
+
+
+# Допуск сообщений
+@bot.message_handler(func=lambda message: True, content_types=['audio', 'photo', 'voice', 'video', 'document',
+                                                               'location', 'contact', 'sticker'])
+def parse_message(message):
     if message.chat.type in ['group', 'supergroup']:
+
         con = sqlite3.connect('DB' + str(message.chat.id) + 'S8.db')
         cur = con.cursor()
 
-        cur.execute("INSERT OR IGNORE INTO User_ids VALUES(?, ?) ",
-                    tuple([str(message.from_user.username).strip('@'), str(message.from_user.id)]))
-        con.commit()
+        btlist = cur.execute("SELECT * FROM Banned_types").fetchall()
 
-        bwlist = cur.execute("SELECT * FROM Banned_words").fetchall()
         con.close()
 
-        result = 'n'
+        types_list = [''.join(n) for n in btlist]
 
-        for bw in bwlist:
-            if bw[0] in message.text:
-                if bw[1] == 'k':
-                    result = 'k'
-
-                if bw[1] == 'm' and result != 'k':
-                    result = 'm'
-
-                if bw[1] == 'a' and result != 'm' and result != 'k':
-                    result = 'a'
-
-        if result == 'k':
-            try:
-                bot.kick_chat_member(message.chat.id, message.from_user.id)
-                time.sleep(0.1)
-                bot.unban_chat_member(message.chat.id, message.from_user.id)
-
-                bot.send_message(message.chat.id, f'Ползователь @{message.from_user.username} был кикнут '
-                                                  f'из группы за использование запрещенных слов')
-            except Exception:
-                pass
-
-        elif result == 'm':
-            try:
-                bot.restrict_chat_member(message.chat.id, message.from_user.id,
-                                         until_date=(message.date + 3600))
-                bot.send_message(message.chat.id, f'Ползователь @{message.from_user.username} был заглушен '
-                                                  f'на час за использование запрещенных слов')
-            except Exception:
-                pass
-
-        elif result == 'a':
+        # Проверка на легальный тип сообщения
+        if message.content_type in types_list:
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) not in (
                     'creator', 'administrator'):
-                bot.reply_to(message, f'@{message.from_user.username}, вы использовали слово, '
-                                      f'входящее в список запрещенных.\n'
-                                      f'Администраторы группы могут принять меры [bwl_a]')
-
+                try:
+                    bot.delete_message(message.chat.id, message.message_id)
+                except Exception:
+                    pass
 
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 bot.polling(none_stop=True)
