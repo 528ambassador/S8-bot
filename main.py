@@ -459,7 +459,7 @@ def commands_in_text(message):
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
                 log = 'Изменения сохранены'
                 try:
-                    wrd_list = [[m.lower() for m in n.strip(' ')] for n in message.text.split('\n')[1:]]
+                    wrd_list = [n.strip(' ') for n in message.text.split('\n')[1:]]
 
                     con = sqlite3.connect('DB' + str(message.chat.id) + 'S8.db')
                     cur = con.cursor()
@@ -482,7 +482,7 @@ def commands_in_text(message):
         elif message.chat.type == 'private':
             log = 'Изменения сохранены'
             try:
-                wrd_list = [[m.lower() for m in n.strip(' ')] for n in message.text.split('\n')[2:]]
+                wrd_list = [n.strip(' ') for n in message.text.split('\n')[2:]]
                 chat_id = message.text.split('\n')[1]
                 db_name = 'DB' + chat_id + 'S8.db'
 
@@ -1072,58 +1072,59 @@ def commands_in_text(message):
     # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    # Заполнение базы User_ids
-    con = sqlite3.connect('DB' + str(message.chat.id) + 'S8.db')
-    cur = con.cursor()
+    if message.chat.type in ['group', 'supergroup']:
+        # Заполнение базы User_ids
+        con = sqlite3.connect('DB' + str(message.chat.id) + 'S8.db')
+        cur = con.cursor()
 
-    cur.execute("INSERT OR IGNORE INTO User_ids VALUES(?, ?) ",
-                tuple([str(message.from_user.username).strip('@'), str(message.from_user.id)]))
-    con.commit()
+        cur.execute("INSERT OR IGNORE INTO User_ids VALUES(?, ?) ",
+                    tuple([str(message.from_user.username).strip('@'), str(message.from_user.id)]))
+        con.commit()
 
-    # Проверка на нелегальные ключевые слова
+        # Проверка на нелегальные ключевые слова
 
-    bwlist = cur.execute("SELECT * FROM Banned_words").fetchall()
-    result = 'n'
+        bwlist = cur.execute("SELECT * FROM Banned_words").fetchall()
+        result = 'n'
 
-    con.close()
+        con.close()
 
-    for bw in bwlist:
-        if bw[0] in message.text.lower():
-            if bw[1] == 'k':
-                result = 'k'
+        for bw in bwlist:
+            if bw[0] in message.text.lower():
+                if bw[1] == 'k':
+                    result = 'k'
 
-            if bw[1] == 'm' and result != 'k':
-                result = 'm'
+                if bw[1] == 'm' and result != 'k':
+                    result = 'm'
 
-            if bw[1] == 'a' and result != 'm' and result != 'k':
-                result = 'a'
+                if bw[1] == 'a' and result != 'm' and result != 'k':
+                    result = 'a'
 
-    if result == 'k':
-        try:
-            bot.kick_chat_member(message.chat.id, message.from_user.id)
-            time.sleep(0.1)
-            bot.unban_chat_member(message.chat.id, message.from_user.id)
+        if result == 'k':
+            try:
+                bot.kick_chat_member(message.chat.id, message.from_user.id)
+                time.sleep(0.1)
+                bot.unban_chat_member(message.chat.id, message.from_user.id)
 
-            bot.send_message(message.chat.id, f'Ползователь @{message.from_user.username} был кикнут '
-                                              f'из группы за использование запрещенных слов')
-        except Exception:
-            pass
+                bot.send_message(message.chat.id, f'Ползователь @{message.from_user.username} был кикнут '
+                                                  f'из группы за использование запрещенных слов')
+            except Exception:
+                pass
 
-    elif result == 'm':
-        try:
-            bot.restrict_chat_member(message.chat.id, message.from_user.id,
-                                     until_date=(message.date + 3600))
-            bot.send_message(message.chat.id, f'Ползователь @{message.from_user.username} был заглушен '
-                                              f'на час за использование запрещенных слов')
-        except Exception:
-            pass
+        elif result == 'm':
+            try:
+                bot.restrict_chat_member(message.chat.id, message.from_user.id,
+                                         until_date=(message.date + 3600))
+                bot.send_message(message.chat.id, f'Ползователь @{message.from_user.username} был заглушен '
+                                                  f'на час за использование запрещенных слов')
+            except Exception:
+                pass
 
-    elif result == 'a':
-        if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) not in (
-                'creator', 'administrator'):
-            bot.reply_to(message, f'@{message.from_user.username}, вы использовали слово, '
-                                  f'входящее в список запрещенных.\n'
-                                  f'Администраторы группы могут принять меры \n[bwl_alert]')
+        elif result == 'a':
+            if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) not in (
+                    'creator', 'administrator'):
+                bot.reply_to(message, f'@{message.from_user.username}, вы использовали слово, '
+                                      f'входящее в список запрещенных.\n'
+                                      f'Администраторы группы могут принять меры \n[bwl_alert]')
 
 
 # Допуск сообщений
