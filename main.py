@@ -214,9 +214,10 @@ def blacklisted_types_main(message):
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, selective=True)
             btn1 = types.KeyboardButton('✅ Изменить список типов')
             btn2 = types.KeyboardButton('➡ Просмотреть список типов')
+            btn3 = types.KeyboardButton('🔙 Вернуться')
 
             markup.add(btn1)
-            markup.add(btn2)
+            markup.add(btn2, btn3)
 
             bot.reply_to(message, 'Сейчас вы изменяете список запрещенных типов слов в группе. \n'
                                   'Все сообщения от не администраторов с данным типом будут сразу удалены. \n'
@@ -226,9 +227,10 @@ def blacklisted_types_main(message):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, selective=True)
         btn1 = types.KeyboardButton('✅ Изменить список типов')
         btn2 = types.KeyboardButton('➡ Просмотреть список типов')
+        btn3 = types.KeyboardButton('🔙 Вернуться')
 
         markup.add(btn1)
-        markup.add(btn2)
+        markup.add(btn2, btn3)
 
         bot.reply_to(message, 'Сейчас вы изменяете список запрещенных слов в группе. \n'
                               'Все сообщения от не администраторов с данными типами будут сразу удалены. \n'
@@ -322,7 +324,7 @@ def commands_in_text(message):
     # Основные кнопки:
 
     if message.text == '🔙 Вернуться':
-        bot.send_message(message.chat.id, 'Список команд: /menu', reply_markup=types.ReplyKeyboardRemove())
+        bot.send_message(message.chat.id, 'Список команд: /main_menu', reply_markup=types.ReplyKeyboardRemove())
 
     # -----------------------------------------------------------------
 
