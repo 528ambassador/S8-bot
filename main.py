@@ -19,7 +19,7 @@ bot = telebot.TeleBot('7066300352:AAHoKT8LAaZd4pdnkbU3vlzBijI25bM7Xqo')
 # Основные команды:
 
 
-# --  START -- Начало общения с ботом, выводит на экран приветствие и несколько комманд
+# --  START -- Начало общения с ботом, выводит на экран приветствие и несколько комманд, создаёт БД
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -29,119 +29,138 @@ def start(message):
                                           f'и развлекательные функции\n'
                                           f'<b>Чтобы я корректно работал, добавьте меня в свою группу как '
                                           f'администратор</b>\n'
-                                          f'Вот список полезных команд - /menu\n'
+                                          f'Список доступных команд - /main_menu\n'
                                           f'<b>Если вы хотите изменить некоторые параметры группы через лс</b>:\n'
                                           f'Впишите в свою группу команды:\n'
                                           f'<b>//add_to_admin_list</b> - я буду знать, что вы являетесь админом\n'
                                           f'<b>//get_group_id</b> - код, которые будут просить функции\n'
                                           f'Давайте начнём!', parse_mode='html')
 
-    elif message.chat.type  == 'supergroup':
+    elif message.chat.type == 'supergroup':
         bot.send_message(message.chat.id, f'<b>Всем привет! Я чат бот S8.</b>\n'
                                           f'Я буду помогать вам регулировать группы, а также предоставлять полезные '
                                           f'и развлекательные функции\n'
                                           f'<b>Чтобы я корректно работал, добавьте меня в свою группу как '
                                           f'администратор</b>\n'
-                                          f'Вот список полезных команд - /menu\n'
+                                          f'Список доступных команд - /main_menu\n'
                                           f'<b>Некоторые параметры группы я могу изменять в лс</b>\n'
                                           f'Давайте начнём!', parse_mode='html')
 
-        group_db_name = 'DB' + str(message.chat.id) + 'S8.db'
-
         try:
+            group_db_name = 'DB' + str(message.chat.id) + 'S8.db'
+
             con = sqlite3.connect(group_db_name)
             cur = con.cursor()
-    
+
             cur.execute("""CREATE TABLE IF NOT EXISTS 
                             Admins(admin TEXT UNIQUE)""")
-    
+
             cur.execute("""CREATE TABLE IF NOT EXISTS 
                             Banned_words(phrase TEXT UNIQUE, punishment_type TEXT)""")
-    
+
             cur.execute("""CREATE TABLE IF NOT EXISTS 
                             Banned_types(ttype TEXT UNIQUE)""")
-    
+
             cur.execute("""CREATE TABLE IF NOT EXISTS 
                             User_ids(username TEXT UNIQUE, id TEXT UNIQUE)""")
-    
-            con.commit()
-            con.close()
-        except Exception:
-            bot.send_message(message.chat.id, 'Ошибка в создании БД')
 
-    elif message.chat.type  == 'group':
+            con.commit()
+
+            cur.close()
+            con.close()
+
+        except Exception:
+            bot.send_message(message.chat.id, 'Ошибка при создании БД')
+
+    elif message.chat.type == 'group':
         bot.send_message(message.chat.id, f'<b>Всем привет! Я чат бот S8.</b>\n'
                                           f'Я буду помогать вам регулировать группы, а также предоставлять полезные '
                                           f'и развлекательные функции\n'
-                                          f'<b>Ваша группа приватная, чтобы пользоваться всеми функциями, '
+                                          f'<b>Ваша группа приватная, чтобы пользоваться всеми функциями - '
                                           f'сделайте её супрегруппой</b>\n'
-                                          f'Вот список полезных команд - /menu\n'
+                                          f'Список доступных команд - /main_menu\n'
                                           f'<b>Некоторые параметры группы я могу изменять в лс</b>\n'
                                           f'Давайте начнём!', parse_mode='html')
 
 
 # ------------------------------------------------------------------------------------
 
-# -- MENU -- Список всех команд, выводит одним сообщением.
+# -- MAIN_MENU -- Список всех общедоступных команд
 
 
 @bot.message_handler(commands=['main_menu'])
 def menu(message):
-    if group.chat.type != 'group':
-        bot.send_message(message.chat.id, 'Список общедоступных команд:\n\n'
-                                      '/start - Начало разговора\n'
-                                      '/menu - Меню со всеми командами\n'
-                                      '/quick_menu - Меню с быстрыми командами\n'
-                                      '/coin_flip - Подбрасывает монетку\n'
-                                      '/rtd - Кидает кость d100\n'
-                                      '/8ball - Пишет случайный результат волшебного шара восьмерки\n'
-                                      '/quote - Пишет случайную цитату на английском\n'
-                                      '/cat - Посылает случайную картинку с котиком\n'
-                                      'Больше комманд для админимтраторов в /quick_menu')
+    if message.chat.type != 'group':
+        bot.send_message(message.chat.id, 'Список общедоступных команд:\n'
+                                          '/coin_flip - Подбрасывает монетку\n'
+                                          '/rtd - Кидает кость d100\n'
+                                          '/8ball - Пишет случайный результат волшебного шара восьмерки\n'
+                                          '/quote - Пишет случайную цитату на английском\n'
+                                          '/cat - Посылает случайную картинку с котиком\n\n'
+                                          'Общедоступные быстрые команды:\n'
+                                          '//coin_flip - Заменяет лишь команду на результат монетки\n'
+                                          '//rtd - Заменяет лишь команду на число 1 - 100\n'
+                                          '//pick_user - Заменяет лишь команду на случайного участника\n'
+                                          'Больше команд для админимтраторов в /admin_menu')
     else:
+        bot.send_message(message.chat.id, 'Список общедоступных команд:\n'
+                                          '/coin_flip - Подбрасывает монетку\n'
+                                          '/rtd - Кидает кость d100\n'
+                                          '/8ball - Пишет случайный результат волшебного шара восьмерки\n'
+                                          '/quote - Пишет случайную цитату на английском\n'
+                                          '/cat - Посылает случайную картинку с котиком\n\n'
+                                          'Общедоступные быстрые команды:\n'
+                                          '//coin_flip - Заменяет лишь команду на результат монетки\n'
+                                          '//rtd - Заменяет лишь команду на число 1 - 100\n'
+                                          '//pick_user - Заменяет лишь команду на случайного участника\n'
+                                          'Ваша группа является приватной, из-за чего я не могу выполнять '
+                                          'другие команды - сделайте группу супергруппой')
 
 
 # ------------------------------------------------------------------------------------
 
-# -- QUICK_MENU -- Список всех быстрых команд, начинающиеся с //, все 3 вида
+# -- ADMIN_MENU -- Список всех команд для администраторов
 
 @bot.message_handler(commands=['admin_menu'])
 def menu(message):
     if message.chat.type != 'group':
-        filling = ('Список быстрых команд - они вводятся как сообщения.\n'
-                  '(❗ - доступно только администраторам)\n\n'
-                  '--- Только команды:\n'
-                  '//mdata -❗- присылает сырые данные сообщения\n'
-                  '//add_to_admin_list -❗- добавляет в список админов группы\n'
-                  '//get_group_id -❗- присылает код группы\n'
-                  '//members - присылает список участников группы\n\n'
-                  '--- Команды с параметрами\n'
-                  '//mute {@-} {d:h:m} -❗- заглушает полльзователя на d, h, m дней, '
-                  'часов, минут соответственно\n'
-                  '//unmute {@-} -❗- убрать заглушение с пользователя\n'
-                  '//kick {@-} -❗- кикает участника группы с шансом вернутся в неё\n'
-                  '//ban {@-} -❗- банит участника группы без шанса на возвращение\n'
-                  '//unban {@-} -❗- разбан пользователя (юзернейм нужно помнить: '
-                  'не возвращает обратно в группу)\n'
-                  '//remove_from_admin_list {@-} -❗- убрать из списка админов\n'
-                  '//bwl_add {фраза: последствие}-❗- добавляет в список запрещенных слов список,'
-                  'каждую фразу с последствием писать с новой строки, последствия: m, k, a - '
-                  'заглушить на час, кикнуть, предупредить соответственно\n'
-                  '//bwl_remove {фраза} -❗- вводятся с новой строки, удаляет из списка'
-                  'выбранные фразы если есть\n'
-                  '//bwl_delete -❗- удаляет весь список\n'
-                  '//bwl_show_list -❗- показывает весь список\n'
-                  '//btl_set {тип} -❗- удаляет сообщения с данными типами, '
-                  'писать на отдельных строках, список в самой команде\n'
-                  '//btl_show_list -❗- показывает список запрещенных типов сообщений\n\n'
-                  '--- Заменяющие команды (бот заменяет команду и пересылает ваше сообщение)\n'
-                  '//coin_flip - заменяется на орёла / решку\n'
-                  '//rtd - заменяется на число 1 - 100\n'
-                  '//pick_user - заменяется случайным пользователем')
-        
-        bot.send_message(message.chat.id, filling)
-    else:
-        bot.send_message(message.chat.id, 'Сделайте вашу группу супергруппой, чтобы пользоваться всеми быстрыми функциями')
+        if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
+            filling = ('Список команд для администраторов:\n\n'
+                       '/start - создаёт бд группы\n'
+                       '/admin_menu - показывает меню для администраторо\n'
+                       '/blacklisted_words - показывает меню управления запрещенными словами\n'
+                       '/blacklisted_types - показывает меню управления запрещенными типами сообщений\n\n'
+                       'Список быстрых команд - они вводятся как сообщения.\n\n'
+                       '--- Только команды:\n'
+                       '//mdata - присылает сырые данные сообщения\n'
+                       '//add_to_admin_list - добавляет в список админов группы\n'
+                       '//get_group_id - присылает код группы\n'
+                       '//members - присылает список участников группы\n\n'
+                       '--- Команды с параметрами\n'
+                       '//mute {@-} {d:h:m} - заглушает полльзователя на d, h, m дней, '
+                       'часов, минут соответственно\n'
+                       '//unmute {@-} - убрать заглушение с пользователя\n'
+                       '//kick {@-} - кикает участника группы с шансом вернутся в неё\n'
+                       '//ban {@-} - банит участника группы без шанса на возвращение\n'
+                       '//unban {@-} - разбан пользователя (юзернейм нужно помнить: '
+                       'не возвращает обратно в группу)\n'
+                       '//remove_from_admin_list {@-} - убрать из списка админов\n'
+                       '//bwl_add {фраза: последствие} - добавляет в список запрещенных слов список,'
+                       'каждую фразу с последствием писать с новой строки, последствия: m, k, a - '
+                       'заглушить на час, кикнуть, предупредить соответственно\n'
+                       '//bwl_remove {фраза} - вводятся с новой строки, удаляет из списка'
+                       'выбранные фразы если есть\n'
+                       '//bwl_delete - удаляет весь список\n'
+                       '//bwl_show_list - показывает весь список\n'
+                       '//btl_set {тип} - удаляет сообщения с данными типами, '
+                       'писать на отдельных строках, список в самой команде\n'
+                       '//btl_show_list - показывает список запрещенных типов сообщений')
+
+            bot.send_message(message.chat.id, filling)
+        else:
+            bot.send_message(message.chat.id,
+                             'Сделайте вашу группу супергруппой, чтобы пользоваться всеми командами')
+
 
 # ------------------------------------------------------------------------------------
 
@@ -190,7 +209,7 @@ def blacklisted_words_main(message):
 
 @bot.message_handler(commands=['blacklisted_types'])
 def blacklisted_types_main(message):
-    if message.chat.type in ['group', 'supergroup']:
+    if message.chat.type == 'supergroup':
         if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, selective=True)
             btn1 = types.KeyboardButton('✅ Изменить список типов')
@@ -249,10 +268,13 @@ def dice_roll(message):
 
 @bot.message_handler(commands=['quote'])
 def quote(message):
-    quotable_get_text = requests.get('https://api.quotable.io/random')
-    quote_get = quotable_get_text.json()
+    try:
+        quotable_get_text = requests.get('https://api.quotable.io/random')
+        quote_get = quotable_get_text.json()
 
-    bot.send_message(message.chat.id, f'{quote_get["content"]} - {quote_get["author"]}')
+        bot.send_message(message.chat.id, f'{quote_get["content"]} - {quote_get["author"]}')
+    except Exception:
+        bot.send_message(message.chat.id, 'Возникла ошибка, попробуйте снова')
 
 
 # ------------------------------------------------------------------------------------
@@ -277,19 +299,22 @@ def eightball(message):
 
 @bot.message_handler(commands=['cat'])
 def cat(message):
-    response = requests.get('https://api.thecatapi.com/v1/images/search')
-    if response.status_code == 200:
-        data = response.json()
-        image_url = data[0]['url']
-        bot.send_photo(message.chat.id, image_url)
-    else:
-        bot.send_message(message.chat.id, 'Возникла ошибка при выполнении команды')
+    try:
+        response = requests.get('https://api.thecatapi.com/v1/images/search')
+        if response.status_code == 200:
+            data = response.json()
+            image_url = data[0]['url']
+            bot.send_photo(message.chat.id, image_url)
+        else:
+            bot.send_message(message.chat.id, 'Возникла ошибка, попробуйте снова')
+    except Exception:
+        bot.send_message(message.chat.id, 'Возникла неожиданная ошибка, попробуйте снова')
 
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-# Провкрка сообщений на ключевые слова с обычных сообщений:
+# --- Провкрка сообщений на ключевые слова с обычных сообщений:
 
 
 @bot.message_handler(func=lambda message: message.content_type == 'text')
@@ -303,7 +328,7 @@ def commands_in_text(message):
 
     # Проверка ключевых слов с команды BLACKLISTED_WORDS:
     if message.text == '✅ Добавить слова':
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
                 bot.send_message(message.chat.id, 'Сейчас вы будете добавлять фразы в список.\n'
                                                   '🔹 <b>Формат:</b> \n'
@@ -332,7 +357,7 @@ def commands_in_text(message):
     # -----------------------------------------------------------------
 
     elif message.text == '❌ Удалить слова':
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
                 bot.send_message(message.chat.id, 'Сейчас вы будете удалять фразы из списка.\n'
                                                   '🔹 <b>Формат:</b> \n'
@@ -358,7 +383,7 @@ def commands_in_text(message):
     # -----------------------------------------------------------------
 
     elif message.text == '💥 Удалить список':
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
                 bot.send_message(message.chat.id, 'Сейчас вы будете удалять список. \n'
                                                   'Для этого введите команду <b>//bwl_delete</b>',
@@ -374,7 +399,7 @@ def commands_in_text(message):
 
     # Проверка ключевых слов с команды BLACKLISTED_TYPES:
     elif message.text == '✅ Изменить список типов':
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
                 bot.send_message(message.chat.id, 'Сейчас вы будете добавлять новый список запрещенных типов.\n'
                                                   'Возможные запрещенные типы:\n'
@@ -414,7 +439,7 @@ def commands_in_text(message):
     if '//bwl_add' in message.text:
 
         # ДЛЯ ГРУПП - ДОБАВЛЕНИЕ ФРАЗ - СЛОВА
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
                 log = 'Изменения сохранены'
                 try:
@@ -427,6 +452,7 @@ def commands_in_text(message):
                     cur.executemany("INSERT OR IGNORE INTO Banned_words VALUES (?, ?) ",
                                     wrd_list)
                     con.commit()
+                    cur.close()
                     con.close()
                 except Exception:
                     log = 'Некорректный ввод'
@@ -457,6 +483,7 @@ def commands_in_text(message):
                     cur.executemany("INSERT OR IGNORE INTO Banned_words VALUES (?, ?) ",
                                     wrd_list)
                     con.commit()
+                    cur.close()
                     con.close()
                 else:
                     log = 'Вы не являетесь админом группы'
@@ -471,7 +498,7 @@ def commands_in_text(message):
     if '//bwl_remove' in message.text:
 
         # ДЛЯ ГРУПП - УДАЛЕНИЕ ФРАЗ - СЛОВА
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
                 log = 'Изменения сохранены'
                 try:
@@ -487,7 +514,9 @@ def commands_in_text(message):
                             pass
                         con.commit()
 
+                    cur.close()
                     con.close()
+
                 except Exception:
                     log = 'Некорректный ввод'
 
@@ -519,6 +548,8 @@ def commands_in_text(message):
                         except Exception:
                             pass
                         con.commit()
+
+                    cur.close()
                     con.close()
 
                 else:
@@ -534,7 +565,7 @@ def commands_in_text(message):
     if '//bwl_show_list' in message.text or message.text == '➡ Просмотреть список':
 
         # ДЛЯ ГРУПП - ПОКАЗАТЬ СПИСОК - СЛОВА
-        if message.chat.type in ['group', 'supergroup'] and message.text == '➡ Просмотреть список':
+        if message.chat.type == 'supergroup' and message.text == '➡ Просмотреть список':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
 
                 log = 'Неожиданная ошибка'
@@ -544,6 +575,7 @@ def commands_in_text(message):
                     cur = con.cursor()
 
                     raw_list = cur.execute("SELECT * FROM Banned_words").fetchall()
+                    cur.close()
                     con.close()
 
                     full_list = '\n'.join([' : '.join(n) for n in raw_list])
@@ -577,6 +609,7 @@ def commands_in_text(message):
 
                 if check:
                     raw_list = cur.execute("SELECT * FROM Banned_words").fetchall()
+                    cur.close()
                     con.close()
 
                     full_list = '\n'.join([' : '.join(n) for n in raw_list])
@@ -598,7 +631,7 @@ def commands_in_text(message):
     if '//bwl_delete' in message.text:
 
         # ДЛЯ ГРУПП - УДАЛИТЬ СПИСОК - СЛОВА
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
 
                 log = 'Неожиданная ошибка'
@@ -609,6 +642,7 @@ def commands_in_text(message):
 
                     cur.execute("DELETE FROM Banned_words")
                     con.commit()
+                    cur.close()
                     con.close()
 
                     log = 'Список успешно удален'
@@ -639,6 +673,7 @@ def commands_in_text(message):
                 if check:
                     cur.execute("DELETE FROM Banned_words")
                     con.commit()
+                    cur.close()
                     con.close()
                     log = 'Список успешно удален'
 
@@ -657,7 +692,7 @@ def commands_in_text(message):
     if '//btl_set' in message.text:
 
         # ДЛЯ ГРУПП - ДОБАВИТЬ СПИСОК - ТИПЫ
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
 
                 log = 'Изменения сохранены'
@@ -680,6 +715,7 @@ def commands_in_text(message):
                                 pass
 
                     con.commit()
+                    cur.close()
                     con.close()
 
                 except Exception:
@@ -723,6 +759,7 @@ def commands_in_text(message):
                     log = 'Вы не являетесь админом группы'
 
                 con.commit()
+                cur.close()
                 con.close()
 
             except Exception:
@@ -733,8 +770,8 @@ def commands_in_text(message):
         # -----------------------------------------------------------------
 
     # ДЛЯ ГРУПП - ПОКАЗАТЬ СПИСОК - ТИПЫ
-    if message.text == '//btl_show_list' or message.text == '➡ Просмотреть список типов':
-        if message.chat.type in ['group', 'supergroup']:
+    if '//btl_show_list' in message.text or message.text == '➡ Просмотреть список типов':
+        if message.chat.type == 'supergroup':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
 
                 log = 'Неожиданная ошибка'
@@ -744,6 +781,7 @@ def commands_in_text(message):
                     cur = con.cursor()
 
                     raw_list = cur.execute("SELECT * FROM Banned_types").fetchall()
+                    cur.close()
                     con.close()
 
                     full_list = '\n'.join([''.join(n) for n in raw_list])
@@ -780,6 +818,7 @@ def commands_in_text(message):
 
                 if check:
                     raw_list = cur.execute("SELECT * FROM Banned_types").fetchall()
+                    cur.close()
                     con.close()
 
                     full_list = '\n'.join([''.join(n) for n in raw_list])
@@ -807,7 +846,7 @@ def commands_in_text(message):
     # -----------------------------------------------------------------
 
     elif message.text == '//get_group_id':
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
                 bot.delete_message(message.chat.id, message.message_id)
                 bot.send_message(message.chat.id, message.chat.id)
@@ -815,13 +854,14 @@ def commands_in_text(message):
     # -----------------------------------------------------------------
 
     elif message.text == '//add_to_admin_list':
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
                 con = sqlite3.connect('DB' + str(message.chat.id) + 'S8.db')
                 cur = con.cursor()
 
                 cur.execute("INSERT OR IGNORE INTO Admins VALUES (?) ", tuple([str(message.from_user.username)]))
                 con.commit()
+                cur.close()
                 con.close()
 
                 bot.delete_message(message.chat.id, message.message_id)
@@ -830,12 +870,13 @@ def commands_in_text(message):
     # -----------------------------------------------------------------
 
     elif message.text == '//members':
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
                 try:
                     con = sqlite3.connect('DB' + str(message.chat.id) + 'S8.db')
                     cur = con.cursor()
                     done = cur.execute("SELECT username FROM User_ids").fetchall()
+                    cur.close()
                     con.close()
                     bot.send_message(message.chat.id, '\n'.join([''.join(n) for n in done])[:4047])
                 except Exception:
@@ -849,7 +890,7 @@ def commands_in_text(message):
     # Быстрые команды (С параметрами)
     if '//mute' in message.text:
         log = 'Неверный ввод'
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
             try:
                 splitt = message.text.split(' ')
                 username = splitt[1].strip('@')
@@ -857,6 +898,7 @@ def commands_in_text(message):
                 con = sqlite3.connect('DB' + str(message.chat.id) + 'S8.db')
                 cur = con.cursor()
                 user_id = cur.execute("SELECT username, id FROM User_ids").fetchall()
+                cur.close()
                 con.close()
 
                 user_id = user_id[[n[0] for n in user_id].index(username)][1]
@@ -892,7 +934,7 @@ def commands_in_text(message):
 
     # -----------------------------------------------------------------
     elif '//unmute' in message.text:
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
 
             log = 'Неверный ввод'
 
@@ -903,6 +945,7 @@ def commands_in_text(message):
                 con = sqlite3.connect('DB' + str(message.chat.id) + 'S8.db')
                 cur = con.cursor()
                 user_id = cur.execute("SELECT username, id FROM User_ids").fetchall()
+                cur.close()
                 con.close()
 
                 user_id = user_id[[n[0] for n in user_id].index(username)][1]
@@ -925,7 +968,7 @@ def commands_in_text(message):
     # -----------------------------------------------------------------
 
     elif '//remove_from_admin_list' in message.text:
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
                 log = 'Список успешно изменен'
 
@@ -943,6 +986,7 @@ def commands_in_text(message):
                     if str(bot.get_chat_member(message.chat.id, user_id).status) not in ('creator', 'administrator'):
                         cur.execute("DELETE FROM Admins WHERE admin = ?", (username,))
                         con.commit()
+                        cur.close()
                         con.close()
                     else:
                         log = 'Ползователь всё ещё админ'
@@ -959,7 +1003,7 @@ def commands_in_text(message):
     # -----------------------------------------------------------------
 
     elif '//kick' in message.text:
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
                 splitt = message.text.split(' ')
                 username = splitt[1].strip('@').strip(' ')
@@ -988,7 +1032,7 @@ def commands_in_text(message):
     # -----------------------------------------------------------------
 
     elif '//ban' in message.text:
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
                 splitt = message.text.split(' ')
                 username = splitt[1].strip('@').strip(' ')
@@ -1015,7 +1059,7 @@ def commands_in_text(message):
     # -----------------------------------------------------------------
 
     elif '//unban' in message.text:
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
             if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) in ('creator', 'administrator'):
                 splitt = message.text.split(' ')
                 username = splitt[1].strip('@').strip(' ')
@@ -1069,11 +1113,12 @@ def commands_in_text(message):
     # -----------------------------------------------------------------
 
     elif '//pick_user' in message.text:
-        if message.chat.type in ['group', 'supergroup']:
+        if message.chat.type == 'supergroup':
             try:
                 con = sqlite3.connect('DB' + str(message.chat.id) + 'S8.db')
                 cur = con.cursor()
                 done = cur.execute("SELECT username FROM User_ids").fetchall()
+                cur.close()
                 con.close()
 
                 user = choice([''.join(n) for n in done])
@@ -1088,45 +1133,70 @@ def commands_in_text(message):
     # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    if message.chat.type in ['group', 'supergroup']:
+    if message.chat.type == 'supergroup':
         try:
             # Заполнение базы User_ids
-            con = sqlite3.connect('DB' + str(message.chat.id) + 'S8.db')
+            db_name = 'DB' + str(message.chat.id) + 'S8.db'
+
+            # ЕСЛИ БД НЕ СОЗДАНА - СОЗДАТЬ
+            if not os.path.exists(db_name):
+                con = sqlite3.connect(db_name)
+                cur = con.cursor()
+
+                cur.execute("""CREATE TABLE IF NOT EXISTS 
+                                            Admins(admin TEXT UNIQUE)""")
+
+                cur.execute("""CREATE TABLE IF NOT EXISTS 
+                                            Banned_words(phrase TEXT UNIQUE, punishment_type TEXT)""")
+
+                cur.execute("""CREATE TABLE IF NOT EXISTS 
+                                            Banned_types(ttype TEXT UNIQUE)""")
+
+                cur.execute("""CREATE TABLE IF NOT EXISTS 
+                                            User_ids(username TEXT UNIQUE, id TEXT UNIQUE)""")
+
+                con.commit()
+
+                cur.close()
+                con.close()
+
+            con = sqlite3.connect(db_name)
             cur = con.cursor()
-    
+
             cur.execute("INSERT OR IGNORE INTO User_ids VALUES(?, ?) ",
                         tuple([str(message.from_user.username).strip('@'), str(message.from_user.id)]))
             con.commit()
-    
+
             # Проверка на нелегальные ключевые слова
-    
+
             bwlist = cur.execute("SELECT * FROM Banned_words").fetchall()
             result = 'n'
-    
+
+            cur.close()
             con.close()
-    
+
             for bw in bwlist:
                 if bw[0] in message.text.lower():
                     if bw[1] == 'k':
                         result = 'k'
-    
+
                     if bw[1] == 'm' and result != 'k':
                         result = 'm'
-    
+
                     if bw[1] == 'a' and result != 'm' and result != 'k':
                         result = 'a'
-    
+
             if result == 'k':
                 try:
                     bot.kick_chat_member(message.chat.id, message.from_user.id)
                     time.sleep(0.1)
                     bot.unban_chat_member(message.chat.id, message.from_user.id)
-    
+
                     bot.send_message(message.chat.id, f'Ползователь @{message.from_user.username} был кикнут '
                                                       f'из группы за использование запрещенных слов')
                 except Exception:
                     pass
-    
+
             elif result == 'm':
                 try:
                     bot.restrict_chat_member(message.chat.id, message.from_user.id,
@@ -1135,7 +1205,7 @@ def commands_in_text(message):
                                                       f'на час за использование запрещенных слов')
                 except Exception:
                     pass
-    
+
             elif result == 'a':
                 if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) not in (
                         'creator', 'administrator'):
@@ -1150,18 +1220,19 @@ def commands_in_text(message):
 @bot.message_handler(func=lambda message: True, content_types=['audio', 'photo', 'voice', 'video', 'document',
                                                                'location', 'contact', 'sticker'])
 def parse_message(message):
-    if message.chat.type in ['group', 'supergroup']:
+    if message.chat.type == 'supergroup':
 
         try:
             con = sqlite3.connect('DB' + str(message.chat.id) + 'S8.db')
             cur = con.cursor()
-    
+
             btlist = cur.execute("SELECT * FROM Banned_types").fetchall()
-    
+
+            cur.close()
             con.close()
-    
+
             types_list = [''.join(n) for n in btlist]
-    
+
             # Проверка на легальный тип сообщения
             if message.content_type in types_list:
                 if str(bot.get_chat_member(message.chat.id, message.from_user.id).status) not in (
